@@ -26,9 +26,9 @@ Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   "mcpServers": {
     "iqtek-golf": {
       "command": "npx",
-      "args": ["-y", "github:TU_USUARIO/iqtek-mcp-golf-platform"],
+      "args": ["-y", "github:ronald3012/mcp-golf-platform"],
       "env": {
-        "API_BASE_URL": "https://dev-api.iqtekgolf.innovix.com.do",
+        "API_BASE_URL": "<URL_DEL_API_QUE_TE_PASA_EL_ADMIN>",
         "STAFF_JWT": "PEGAR_AQUI_EL_JWT_DEL_STAFF",
         "LOG_LEVEL": "info"
       }
@@ -39,7 +39,7 @@ Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
 Después: **Cmd+Q a Claude Desktop y reabrir**. Eso es todo. `npx` clona el repo en caché, instala deps y arranca el server. Primera ejecución lenta (~30s), las siguientes son instantáneas.
 
-> Reemplazá `TU_USUARIO` por tu usuario/organización de GitHub. Si el repo es privado, el operador necesita acceso vía SSH/HTTPS configurado en su Git.
+> El repo es **público** — ningún operador necesita estar logueado en GitHub. Solo necesita Node (que incluye npx) instalado en su máquina.
 
 ## Generar el `STAFF_JWT`
 
@@ -66,7 +66,7 @@ Cada operador del torneo tiene su propio JWT con su propio `uid` — así el `pa
 
 | Var | Default | Para qué |
 |---|---|---|
-| `API_BASE_URL` | (requerido) | URL del API iqtekgolf en prod o dev |
+| `API_BASE_URL` | (requerido) | URL del API iqtekgolf — solicítala al administrador del torneo. Nunca commitear a un repo público. |
 | `STAFF_JWT` | (requerido) | JWT firmado con `SECRET_JWT_SEED2` del API |
 | `LOG_LEVEL` | `info` | Pino log level (a stderr) |
 | `API_TIMEOUT_MS` | `15000` | Timeout HTTP al API |
