@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+.DS_Store
+coverage/
+
+# dist/ NO está ignorado a propósito — se publica como parte del paquete
+# para que `npx github:owner/repo` no necesite ejecutar el build localmente.
