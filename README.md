@@ -1,25 +1,10 @@
-# iQtek MCP Server — Golf Platform
+# iQtek Golf — MCP
 
-MCP (Model Context Protocol) productivo del torneo iQtek Golf. Permite que Claude (Desktop, Code, o API) opere el torneo en vivo: emparejar jugadores, crear/borrar foursomes, consultar leaderboards y scoring.
+MCP (Model Context Protocol) interno para operar el torneo desde Claude (Desktop/Code/API). **Uso restringido a personal autorizado.**
 
-Es un **cliente HTTP fino** del API `iqtekgolf_api`: no toca BD, no duplica lógica, propaga el JWT del staff al API y marca cada operación con `X-Mcp-Source: 1` para auditar.
+## Instalación en Claude Desktop
 
-## Tools expuestos (15)
-
-**Pairing (6)**:
-- `pair_players`, `unpair_player`, `revert_pair_audit`
-- `list_unpaired_players`, `list_pairs`, `list_pair_audit`
-
-**Foursomes (4)**:
-- `list_foursomes`, `get_foursome`, `create_foursome`, `delete_foursome`
-
-**Scoring (5)**:
-- `get_best_ball_leaderboard`, `get_pareja_leaderboard`
-- `get_player_results`, `get_foursome_scoring`, `get_round_progress`
-
-## Agregarlo a Claude Desktop (sin clonar el repo)
-
-Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) y agregar:
+1. Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) y agregar dentro de `mcpServers`:
 
 ```json
 {
@@ -28,8 +13,8 @@ Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
       "command": "npx",
       "args": ["-y", "github:ronald3012/mcp-golf-platform"],
       "env": {
-        "API_BASE_URL": "<URL_DEL_API_QUE_TE_PASA_EL_ADMIN>",
-        "STAFF_JWT": "PEGAR_AQUI_EL_JWT_DEL_STAFF",
+        "API_BASE_URL": "<solicitar al administrador>",
+        "STAFF_JWT": "<solicitar al administrador>",
         "LOG_LEVEL": "info"
       }
     }
@@ -37,105 +22,32 @@ Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-Después: **Cmd+Q a Claude Desktop y reabrir**. Eso es todo. `npx` clona el repo en caché, instala deps y arranca el server. Primera ejecución lenta (~30s), las siguientes son instantáneas.
+> Si el `command` falla, usá el path absoluto a `npx` (`which npx` te lo da).
 
-> El repo es **público** — ningún operador necesita estar logueado en GitHub. Solo necesita Node (que incluye npx) instalado en su máquina.
+2. Cerrar Claude Desktop con Cmd+Q y reabrir.
 
-## Generar el `STAFF_JWT`
+Primera ejecución tarda unos segundos (descarga e instala). Después arranca instantáneo.
 
-Desde la carpeta del API:
+## Requisitos del operador
 
-```bash
-cd ../iqtekgolf_api
-node -e "
-require('dotenv').config();
-const jwt = require('jsonwebtoken');
-console.log(jwt.sign(
-  { uid: 'staff-operador', name: 'Nombre del Operador' },
-  process.env.SECRET_JWT_SEED2,
-  { expiresIn: '7d' }
-));
-"
-```
-
-Copiar el output al `STAFF_JWT` del config. Dura 7 días. Si necesitás más, cambiá `expiresIn` (`"14d"`, `"30d"`).
-
-Cada operador del torneo tiene su propio JWT con su propio `uid` — así el `pair_audit_log` queda con identidad real de quién hizo qué.
+- Node 20 o superior instalado (incluye `npx`).
+- `API_BASE_URL` y `STAFF_JWT` provistos por el administrador del torneo, **por canal privado**. Estos valores no se publican y son específicos por operador.
 
 ## Variables de entorno
 
-| Var | Default | Para qué |
+| Var | Requerido | Default |
 |---|---|---|
-| `API_BASE_URL` | (requerido) | URL del API iqtekgolf — solicítala al administrador del torneo. Nunca commitear a un repo público. |
-| `STAFF_JWT` | (requerido) | JWT firmado con `SECRET_JWT_SEED2` del API |
-| `LOG_LEVEL` | `info` | Pino log level (a stderr) |
-| `API_TIMEOUT_MS` | `15000` | Timeout HTTP al API |
+| `API_BASE_URL` | ✓ | — |
+| `STAFF_JWT` | ✓ | — |
+| `LOG_LEVEL` | — | `info` |
+| `API_TIMEOUT_MS` | — | `15000` |
 
-## Desarrollo local
+Las credenciales tienen vencimiento. Cuando expiren, el administrador entrega un reemplazo.
 
-Si querés correrlo desde código (sin npx):
+## Soporte
 
-```bash
-git clone <repo>
-cd iqtek-mcp-golf-platform
-npm install
-npm run build
-npm start             # HTTP transport en puerto 4101
-# o
-npm run start:stdio   # stdio transport para Claude Desktop
-```
+Reportar problemas al administrador del torneo. No abrir issues públicos en este repo con datos de configuración, JWTs ni URLs.
 
-Para usar la build local en Claude Desktop:
+## Licencia
 
-```json
-{
-  "mcpServers": {
-    "iqtek-golf": {
-      "command": "/path/absoluto/a/node",
-      "args": ["/path/absoluto/a/dist/server-stdio.js"],
-      "env": { "API_BASE_URL": "...", "STAFF_JWT": "..." }
-    }
-  }
-}
-```
-
-## Tests
-
-```bash
-npm test
-```
-
-8 tests cubren `apiClient` (propagación de headers, query params, error handling, timeouts) y los tools básicos (URL building, body serialization).
-
-## Arquitectura
-
-```
-Claude (Desktop/Code/API)
-   │ MCP protocol (stdio)
-   ▼
-iqtek-mcp-golf-platform (este paquete, ejecutado por npx o local)
-   │ HTTP (x-token + X-Mcp-Source: 1)
-   ▼
-iqtekgolf_api (puerto 4001 dev / dominio real prod)
-   │ mysql2
-   ▼
-MySQL (personas, foursomes, posteos*, pair_audit_log)
-```
-
-El MCP es **stateless y sin acceso a BD**. Toda lógica de negocio vive en el API.
-
-## Source tracking
-
-Cada llamada del MCP al API incluye `X-Mcp-Source: 1`. Endpoints sensibles como `DELETE /api/foursome/:id` aplican confirmaciones especiales solo cuando ven ese header — operaciones del panel admin no se ven afectadas.
-
-Para reportes de auditoría:
-
-```sql
-SELECT source, action, COUNT(*) FROM pair_audit_log GROUP BY source, action;
-```
-
-## Build details
-
-- TypeScript estricto, target ES2022, Node16 module resolution.
-- Se commitea `dist/` al repo para que `npx github:...` funcione sin necesidad de devDependencies.
-- Si modificás `src/`, hacé `npm run build` antes de commitear.
+Software interno — no distribuir.
